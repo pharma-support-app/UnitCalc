@@ -13,20 +13,11 @@
     <link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --clr-ink: #1D2E2E;
-            --clr-muted: #62787A;
-            --clr-bg: #F3F7F6;
-            --clr-surface: #FFFFFF;
             --clr-primary: #0E6E6B;
             --clr-primary-dark: #0A4F4D;
-            --clr-primary-tint: #E2F1EF;
-            --clr-amber-tint: #FBF3E6;
-            --clr-mint-tint: #EAF6F0;
-            --clr-danger: #C6432E;
+            --clr-muted: #62787A;
             --clr-line: #DCE7E5;
         }
-
-        html, body { background: var(--clr-bg); color: var(--clr-ink); font-family: "Noto Sans JP", "Hiragino Kaku Gothic ProN", sans-serif; }
 
         /* ---- ヘッダー ---- */
         .app-header {
@@ -64,66 +55,6 @@
             color: var(--clr-muted);
             letter-spacing: 0.02em;
         }
-
-        /* ---- コントロールバー & テーブル ---- */
-        .calc-table-wrap {
-            background: var(--clr-surface);
-            border-radius: 14px;
-            box-shadow: 0 1px 3px rgba(14, 110, 107, 0.08), 0 6px 20px rgba(14, 110, 107, 0.06);
-            overflow: hidden;
-            border: 1px solid var(--clr-line);
-        }
-        .table { margin-bottom: 0; }
-        .control-row th {
-            background: var(--clr-primary-tint) !important;
-            border-bottom: 1px solid var(--clr-line);
-            font-weight: 600;
-            color: var(--clr-primary-dark);
-            vertical-align: middle;
-        }
-        .table-warning, .table-warning > td, .table-warning > th {
-            background-color: var(--clr-amber-tint) !important;
-            color: var(--clr-ink);
-        }
-        .table-primary, .table-primary > td, .table-primary > th {
-            background-color: var(--clr-primary-tint) !important;
-            color: var(--clr-primary-dark);
-        }
-        .table-success, .table-success > td, .table-success > th {
-            background-color: var(--clr-mint-tint) !important;
-            color: var(--clr-ink);
-        }
-        .table > :not(caption) > * > * { border-bottom-width: 1px; border-color: var(--clr-line); }
-
-        .btn-outline-primary {
-            color: var(--clr-primary-dark);
-            border-color: var(--clr-primary);
-        }
-        .btn-outline-primary:hover, .btn-outline-primary:focus {
-            background-color: var(--clr-primary);
-            border-color: var(--clr-primary);
-        }
-        .btn-outline-success {
-            color: var(--clr-primary-dark);
-            border-color: var(--clr-muted);
-        }
-        .btn-outline-success:hover, .btn-outline-success:focus {
-            background-color: var(--clr-ink);
-            border-color: var(--clr-ink);
-        }
-
-        #dayresult {
-            background: var(--clr-surface) !important;
-            border: 1px solid var(--clr-line) !important;
-            box-shadow: 0 1px 3px rgba(14, 110, 107, 0.06);
-        }
-
-        .card-header.bg-success {
-            background: var(--clr-primary) !important;
-        }
-        .card .card-body.bg-light { background: var(--clr-surface) !important; }
-        .card { border: 1px solid var(--clr-line); }
-        .text-success { color: var(--clr-primary) !important; }
 
         .input-block { display: flex; flex-direction: column; }
         .select-block { margin-bottom: 16px; }
@@ -231,10 +162,9 @@
     </header>
     <div id="copy-toast">結果をクリップボードにコピーしました</div>
 
-    <div class="calc-table-wrap">
     <table class="table mb-0">
         <thead>
-            <tr style="text-align: center;" class="control-row">
+            <tr style="text-align: center;" class="table-danger">
                 <th scope="col" class="align-middle">
                     <button type="button" onclick="location.reload()" class="btn btn-outline-success">ﾘｾｯﾄ</button>
                 </th>
@@ -253,9 +183,8 @@
         <tbody id="table-body">
             </tbody>
     </table>
-    </div>
 
-    <div id="dayresult" class="mt-4 p-3 border bg-light" style="min-height: 50px; border-radius: 8px;">
+    <div id="dayresult" class="mt-3 p-3 border bg-light" style="min-height: 50px; border-radius: 8px;">
         ここに結果が表示されます
     </div>
 
