@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>単位計算ツール</title>
+
+    <link rel="icon" type="image/png" href="icon.png">
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .input-block { display: flex; flex-direction: column; }
+        .select-block { margin-bottom: 16px; }
+        select, label { height: 52px; font-size: 14px; }
+        /* 追加されたスタイル */
+        .vertical-middle {
+          background: yellow; 
+          display: table-cell; 
+          vertical-align: middle; 
+        }
+        .card { border-radius: 10px; overflow: hidden; }
+        .list-group-item { border: none; padding: 8px 0; }
+        .fw-bold { letter-spacing: 0.05em; }
+        code { background-color: #f1f1f1; padding: 2px 4px; border-radius: 4px; color: #d63384; }
+        /* 追加：リストの背景を透明にするための微調整 */
+        .list-group-item.bg-transparent {
+          background-color: transparent !important;
+        }
+        #loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.8); display: flex; justify-content: center;
+            align-items: center; z-index: 1000; font-weight: bold;
+        }
+		/* コピー通知のスタイル */
+		#copy-toast {
+		    position: fixed;
+		    top: 50%;
+		    left: 50%;
+		    transform: translate(-50%, -50%);
+		    background-color: rgba(0, 0, 0, 0.7);
+		    color: white;
+		    padding: 12px 24px;
+		    border-radius: 30px;
+		    z-index: 2000;
+		    display: block; /* 最初からblockにしておき、opacityで制御します */
+		    pointer-events: none; /* 背後のボタン操作を邪魔しないように追加 */
+		    opacity: 0;
+		    transition: opacity 1.0s ease;
+		}
+		
+		/* アニメーション用クラス */
+		.show-toast {
+		    display: block !important;
+		    opacity: 1 !important;
+		}
+		/* 結果表示エリアの文字サイズをアップ */
+		#dayresult {
+		    min-height: 60px;
+		    border-radius: 8px;
+		    font-size: 1.25rem; /* 以前より一回り大きく(約20px) */
+		    font-weight: bold;
+		    line-height: 1.6;
+		}
+		
+		/* スマホ表示(画面幅768px未満)の調整 */
+		@media (max-width: 767.98px) {
+		    #dayresult {
+		        font-size: 1.1rem; /* スマホでは少しだけ抑える */
+		    }
+		    /* テーブルのセル幅をスマホ用に自動調整 */
+		    .table td {
+		        min-width: 80px; 
+		        padding: 4px;
+		    }
+		    /* ボタン文字の切り替え用 */
+		    .btn-text-long { display: none; }
+		    .btn-text-short { display: inline; }
+		}
+		
+		/* PC表示(768px以上)では長い文字を出す */
+		@media (min-width: 768px) {
+		    .btn-text-long { display: inline; }
+		    .btn-text-short { display: none; }
+		}
+    </style>
+</head>
+	<script async src="https://www.googletagmanager.com/gtag/js?id=G-NT97JSKR3Z"></script>
+	<script>
+	  window.dataLayer = window.dataLayer || [];
+	  function gtag(){dataLayer.push(arguments);}
+	  gtag('js', new Date());
+	
+	  // 広告シグナルをオフにする設定（バナーを出さないための配慮）
+	  gtag('config', 'G-NT97JSKR3Z', { 
+	    'allow_google_signals': false,
+	    'allow_ad_personalization_signals': false 
+	  });
+	</script>
+<body>
+
+<div id="loading-overlay">データを読み込み中...</div>
+
+<div class="container" style="max-width: 1000px;">
+    <h2 class="my-4">★単位計算</h2> <div id="copy-toast">結果をクリップボードにコピーしました</div>
+    
+    <table class="table">
+        <thead>
+            <tr style="text-align: center;" class="table-danger">
+                <th scope="col" class="align-middle">
+                    <button type="button" onclick="location.reload()" class="btn btn-outline-success">ﾘｾｯﾄ</button>
+                </th>
+                <th style="text-align: right" class="align-middle" scope="col">処方日数:</th>
+                <th scope="col">
+                    <input type="number" min="0" class="form-control" id="nissuu" value="28" onfocus="this.select();">
+                </th>
+                <th scope="col" class="align-middle">
+                    <button type="button" onclick="calcBtn()" class="btn btn-outline-primary w-100">
+					    <span class="btn-text-long">計算してコピー</span>
+					    <span class="btn-text-short">計算</span>
+					</button>
+                </th>
+                <th scope="col">
+                    <select class="form-select" id="syosiki">
+                        <option>出力形式1</option>
+                        <option>出力形式2</option>
+                    </select>
+                </th>
+                <th scope="col" class="align-middle">
+				    <input type="checkbox" id="zan" checked>
+				    <span class="btn-text-long">不足分「残あり」</span>
+				    <span class="btn-text-short">残あり</span>
+				</th>
+            </tr>
+        </thead>
+        <tbody id="table-body">
+            </tbody>
+    </table>
+
+    <div id="dayresult" class="mt-3 p-3 border bg-light" style="min-height: 50px; border-radius: 8px;">
+        ここに結果が表示されます
+    </div>
+
+    <div class="card mt-5 shadow-sm">
+      <div class="card-header bg-success text-white"><h5>使い方 & Tips</h5></div>
+      <div class="card-body bg-light">
+        <div class="row">
+          <div class="col-md-6 border-end">
+            <h6 class="fw-bold text-success border-bottom pb-2">操作ステップ</h6>
+            <ol class="list-group list-group-numbered list-group-flush">
+              <li class="list-group-item bg-transparent"><b>日数を入力</b>（デフォルト28日、ホイールで7日ずつ変化）</li>
+              <li class="list-group-item bg-transparent"><b>薬剤・針を選択</b>肢から選ぶ</li>
+              <li class="list-group-item bg-transparent"><b>処方本数を入力</b>（針はホイールで14本ずつ変化）</li>
+              <li class="list-group-item bg-transparent"><b>1回使用量を入力</b><br>
+                <small class="text-muted">※1日3回なら分1〜分3に入力。マンジャロ等は入力不要です。</small>
+              </li>
+              <li class="list-group-item bg-transparent"><b>「計算してコピー」</b>をクリックまたはエンターキー</li>
+            </ol>
+          </div>
+          <div class="col-md-6 ps-md-4">
+            <h6 class="fw-bold text-secondary border-bottom pb-2">便利な機能</h6>
+            <ul class="list-unstyled mt-2">
+              <li class="mb-2">✅ <b>空打ち分</b>は自動計算に含まれています。</li>
+              <li class="mb-2">✅ ボタン押下時に<b>クリップボードへ自動コピー</b>されるので、そのまま薬歴に <code>Ctrl + V</code> で貼り付けOK！</li>
+              <li class="mb-2">⌨️ <b>矢印キー（↑↓←→）</b>でExcelのようにセル移動が可能です。</li>
+              <li class="mb-2">⚠️ 不足がある場合は<b>赤字</b>で表示されます。残薬確認をお願いします。</li>
+              <li class="mb-2">🖱️ 各入力欄はマウスを合わせるだけで<b>ホイール操作</b>が可能です。</li>
+              <li class="mb-2">🗓️ 次回予定日は、本日の日付を基準に算出されます。</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+</div>
+
+<script>
+    let masterData = [["ゾルトファイ",300,"単位","要","毎日",2],
+                      ["ソリクア",300,"単位","要","毎日",2],
+                      ["ビクトーザ",18,"mg","要","毎日",0.12],
+                      ["バイエッタ",300,"単位","要","毎日",2],
+                      ["リキスミア",300,"単位","要","毎日",2],
+                      ["トルリシティ",1,"キット","不要","週1",0],
+                      ["オゼンピック",2,"mg","要","週1",0],
+                      ["ノボリンＲ",300,"単位","要","毎日",2],
+                      ["ヒューマリンＲ",300,"単位","要","毎日",2],
+                      ["ノボリンＮ",300,"単位","要","毎日",2],
+                      ["ヒューマリンＮ",300,"単位","要","毎日",2],
+                      ["ノボリン30Ｒ",300,"単位","要","毎日",2],
+                      ["ヒューマログ",300,"単位","要","毎日",2],
+                      ["ルムジェブ",300,"単位","要","毎日",2],
+                      ["インスリンリスプロ",300,"単位","要","毎日",2],
+                      ["インスリンアスパルト",300,"単位","要","毎日",2],
+                      ["ノボラピッド",300,"単位","要","毎日",2],
+                      ["ノボラピッド30Ｒ",300,"単位","要","毎日",2],
+                      ["フィアスプ",300,"単位","要","毎日",2],
+                      ["アピドラ",300,"単位","要","毎日",2],
+                      ["ランタス",300,"単位","要","毎日",2],
+                      ["ランタスXR",450,"単位","要","毎日",3],
+                      ["グラルギン",300,"単位","要","毎日",2],
+                      ["レベミル",300,"単位","要","毎日",2],
+                      ["トレシーバ",300,"単位","要","毎日",2],
+                      ["ライゾデグ",300,"単位","要","毎日",2],
+                      ["アウィクリ(300)",300,"単位","要","週1",10],
+                      ["アウィクリ(700)",700,"単位","要","週1",10],
+                      ["マンジャロ",1,"キット","不要","週1",0],
+                      ["ソグルーヤ",5,"mg","要","週1",0.025]];
+
+    window.addEventListener('load', () => {
+        // 通信(fetch)をせず、変数にあるデータをそのまま使う
+        masterData.sort((a, b) => a[0].localeCompare(b[0], 'ja'));
+    
+        buildTable(); 
+        buildDropdowns(masterData); 
+        
+        // ローディング画面を一瞬で消す
+        document.getElementById('loading-overlay').style.display = 'none';
+    });
+
+    /// テーブルの行を動的に生成
+    function buildTable() {
+        const labels = ["名称", "処方本数", "分1", "分2", "分3", "分4", "分5"];
+        const classes = ["table-warning", "table-primary", "table-success", "table-success", "table-success", "table-success", "table-success"];
+        let html = "";
+
+        labels.forEach((label, i) => {
+            // i=3は「分2」。i=4(分3)以降を初期状態で隠す
+            let isHidden = i >= 4;
+            let rowStyle = isHidden ? 'style="display: none; text-align: center;"' : 'style="text-align: center;"';
+            
+            // IDの割り振り（名称:row-meisyo, 処方:row-suuryou, 分1:row-shiyou1 ... 分5:row-shiyou5）
+            let rowId = "";
+            if (i === 0) rowId = 'id="row-meisyo"';
+            else if (i === 1) rowId = 'id="row-suuryou"';
+            else rowId = `id="row-shiyou${i-1}"`;
+
+            html += `<tr ${rowId} ${rowStyle} class="${classes[i]}">`;
+            html += `<td style="width: 100px" class="align-middle">${label}</td>`;
+            for (let l = 1; l <= 5; l++) {
+                if (i === 0) {
+                    html += `<td style="width: 200px"><select class="form-select" id="kusuriselect${l}"><option>---</option></select></td>`;
+                } else {
+                    const id = i === 1 ? `suuryou${l}` : `siyouryou${i-1}-${l}`;
+                    // 中央揃えをtdに適用
+                    html += `<td style="width: 200px; text-align: center;">
+                                <input type="number" min="0" class="form-control" id="${id}" value="0" 
+                                 onfocus="this.select();" oninput="checkNextRow()">
+                             </td>`;
+                }
+            }
+            html += `</tr>`;
+        });
+        document.getElementById('table-body').innerHTML = html;
+    }
+
+	// 次の行を表示するロジック
+    function checkNextRow() {
+        // 2(分2)〜4(分4)の入力をチェックして、次の行(3〜5)を出す
+        for (let i = 2; i <= 4; i++) {
+            let hasValue = false;
+            for (let l = 1; l <= 5; l++) {
+                const input = document.getElementById(`siyouryou${i}-${l}`);
+                if (input && Number(input.value) > 0) {
+                    hasValue = true;
+                    break;
+                }
+            }
+            // 値があれば次の行を表示
+            const nextRow = document.getElementById(`row-shiyou${i + 1}`);
+            if (nextRow && hasValue) {
+                nextRow.style.display = '';
+            }
+        }
+    }
+
+    function buildDropdowns(data) {
+        for (let l = 1; l <= 5; l++) {
+            const select = document.getElementById(`kusuriselect${l}`);
+            let options = `<option>---</option><option>針</option>`;
+            data.forEach(item => {
+                if(item[0]) options += `<option>${item[0]}</option>`;
+            });
+            select.innerHTML = options;
+
+            // ★追加：プルダウン内をホイールで回せるようにする
+            select.addEventListener('wheel', (e) => {
+                e.preventDefault(); // 画面全体のスクロールを止める
+                
+                if (e.deltaY > 0) {
+                    // 下に回した時：次の項目へ
+                    if (select.selectedIndex < select.options.length - 1) {
+                        select.selectedIndex++;
+                    }
+                } else {
+                    // 上に回した時：前の項目へ
+                    if (select.selectedIndex > 0) {
+                        select.selectedIndex--;
+                    }
+                }
+                
+                // 変更を確定させるためにchangeイベントを発生させる（必要に応じて）
+                select.dispatchEvent(new Event('change'));
+            }, { passive: false });
+        }
+    }
+
+    /* --- 計算ロジック --- */
+function calcBtn() {
+    const nissuu = Number(document.getElementById("nissuu").value);
+    const syosiki = document.getElementById('syosiki').value;
+    const zann = document.getElementById('zan').checked ? "だが残あり" : "";
+    
+    let htmlResult = "";
+    let clipText = "";
+    let needleTotal = 0;
+    let hasNeedle = false;
+    let needleStock = 0;
+
+    const masterNames = masterData.map(d => d[0]);
+
+    // 1. 各列(薬品ごと)のループ
+    for (let l = 1; l <= 5; l++) {
+        const kusuri = document.getElementById(`kusuriselect${l}`).value;
+        if (kusuri === "------" || kusuri === "---") continue;
+        
+        // 針の在庫チェック
+        if (kusuri === "針") {
+            hasNeedle = true;
+            needleStock = Number(document.getElementById(`suuryou${l}`).value);
+            continue;
+        }
+
+        const suuryou = Number(document.getElementById(`suuryou${l}`).value);
+
+        // 分1～分5の使用量を配列で一括取得
+        let usages = [];
+        for (let j = 1; j <= 5; j++) {
+            usages.push(Number(document.getElementById(`siyouryou${j}-${l}`).value) || 0);
+        }
+        
+        const sTotal = usages.reduce((sum, val) => sum + val, 0); // 合計単位数
+        const useCount = usages.filter(v => v > 0).length;         // 使用回数
+
+        const idx = masterNames.indexOf(kusuri);
+        if (idx === -1) continue;
+
+        const row = masterData[idx];
+        const capacity = row[1], unit = row[2], needNeedle = row[3], interval = row[4], priming = Number(row[5]);
+
+        let days = (interval === "週1") ? Math.ceil(nissuu / 7) : nissuu;
+        let intervalLabel = (interval === "週1") ? "週分" : "日分";
+
+        // 針が必要な薬ならカウントに加算
+        if (needNeedle === "要") needleTotal += (useCount * days);
+
+        // インスリンの必要量計算
+        let required = days * (sTotal + (priming * useCount));
+        let totalPrescribed = suuryou * capacity;
+        let diff = totalPrescribed - required;
+        let color = diff < 0 ? "red" : "black";
+
+        // 不足分の表示作成
+        let busokuDetail = diff < 0 ? `${Math.abs(diff)}${unit}(${Number((Math.abs(diff/capacity)).toFixed(2))}本)不足${zann}` : "不足なし";
+
+        let rowText = "";
+        if (syosiki === "出力形式1") {
+            rowText = `${kusuri}:${busokuDetail} (必要:${required}${unit} / 処方:${totalPrescribed}${unit})`;
+        } else {
+            rowText = `${kusuri}必要量${required}${unit}(${days}${intervalLabel}) 今回処方${totalPrescribed}${unit}→${busokuDetail}`;
+        }
+        htmlResult += `<div style="color:${color}">${rowText}</div>`;
+        clipText += `\n${rowText}`;
+    }
+
+    // 2. 針の不足分計算
+    if (needleTotal > 0 || hasNeedle) {
+        let diffN = needleStock - needleTotal;
+        let colorN = diffN < 0 ? "red" : "black";
+        
+        let totalFukuro = Math.abs(diffN / 14);
+        let hako = Math.floor(totalFukuro / 5);
+        let fukuroVal = totalFukuro % 5;
+        let fukuro = Math.round(fukuroVal * 10) / 10; // 割り切れる時は小数点を消す
+
+        let unitText = hako > 0 ? `${hako}箱` + (fukuro > 0 ? ` + ${fukuro}袋` : "") : `${fukuro}袋`;
+        let busokuNeedleDetail = diffN < 0 ? `${Math.abs(diffN)}本(${unitText})不足${zann}` : "不足なし";
+        
+        let needleText = "";
+        if (syosiki === "出力形式1") {
+            needleText = `針:${busokuNeedleDetail} (必要:${needleTotal}本 / 処方:${needleStock}本)`;
+        } else {
+            needleText = `針必要本数${needleTotal}本(${nissuu}日分) 今回処方${needleStock}本→${busokuNeedleDetail}`;
+        }
+        htmlResult += `<div style="color:${colorN}">${needleText}</div>`;
+        clipText += `\n${needleText}`;
+    }
+
+    // 3. 次回予定日の計算
+    const targetDate = new Date();
+    targetDate.setDate(targetDate.getDate() + nissuu);
+    const dateStr = `${targetDate.getMonth()+1}月${targetDate.getDate()}日(${"日月火水木金土"[targetDate.getDay()]})`;
+    htmlResult += `<div>次回予定日:${dateStr}</div>`;
+    clipText += `\n次回予定日:${dateStr}`;
+
+    // 4. 結果の出力とコピー
+    document.getElementById('dayresult').innerHTML = htmlResult;
+    
+    navigator.clipboard.writeText(clipText.trim()).then(() => {
+        const toast = document.getElementById('copy-toast');
+        toast.classList.add('show-toast');
+        setTimeout(() => { toast.classList.remove('show-toast'); }, 1200);
+    });
+
+    // 5. GA4にイベント送信（解析用）
+    if (typeof gtag === 'function') {
+        gtag('event', 'calculation_execute', { 'event_category': 'usage' });
+    }
+}
+
+    /* --- 便利機能（キー操作・ホイール） --- */
+    document.addEventListener('keydown', (e) => {
+        // Enterキーで計算実行
+        if (e.key === 'Enter') {
+            calcBtn();
+            return;
+        }
+
+        // 矢印キー移動ロジック
+        const active = document.activeElement;
+        if (!active || (active.tagName !== 'INPUT' && active.tagName !== 'SELECT')) return;
+
+        // 現在の要素のIDや情報を解析
+        const id = active.id;
+        let nextId = null;
+
+        // IDのパターンから現在の「行」と「列」を特定
+        // 名称(kusuriselectL), 数量(suuryouL), 使用量(siyouryouR-L)
+        let row, col;
+        if (id.startsWith('kusuriselect')) {
+            row = 0; col = parseInt(id.replace('kusuriselect', ''));
+        } else if (id.startsWith('suuryou')) {
+            row = 1; col = parseInt(id.replace('suuryou', ''));
+        } else if (id.startsWith('siyouryou')) {
+            const match = id.match(/siyouryou(\d+)-(\d+)/);
+            row = parseInt(match[1]) + 1; col = parseInt(match[2]);
+        } else if (id === 'nissuu') {
+            // 日数入力欄にいる場合
+            if (e.key === 'ArrowDown') {
+                document.getElementById('kusuriselect1').focus();
+                e.preventDefault();
+            }
+            return;
+        } else {
+            return;
+        }
+
+        // 移動先の計算
+        if (e.key === 'ArrowUp') {
+            if (row === 0) nextId = 'nissuu';
+            else if (row === 1) nextId = `kusuriselect${col}`;
+            else if (row === 2) nextId = `suuryou${col}`;
+            else nextId = `siyouryou${row-2}-${col}`;
+        } else if (e.key === 'ArrowDown') {
+            if (row === 0) nextId = `suuryou${col}`;
+            else if (row === 1) nextId = `siyouryou1-${col}`;
+            else if (row < 5) nextId = `siyouryou${row}-${col}`;
+        } else if (e.key === 'ArrowLeft') {
+            if (col > 1) {
+                if (row === 0) nextId = `kusuriselect${col-1}`;
+                else if (row === 1) nextId = `suuryou${col-1}`;
+                else nextId = `siyouryou${row-1}-${col-1}`;
+            }
+        } else if (e.key === 'ArrowRight') {
+            if (col < 5) {
+                if (row === 0) nextId = `kusuriselect${col+1}`;
+                else if (row === 1) nextId = `suuryou${col+1}`;
+                else nextId = `siyouryou${row-1}-${col+1}`;
+            }
+        }
+
+        if (nextId) {
+            const nextEl = document.getElementById(nextId);
+            if (nextEl) {
+                e.preventDefault(); // ブラウザ標準の挙動（数値の増減など）を防止
+                nextEl.focus();
+                if (nextEl.tagName === 'INPUT') nextEl.select();
+            }
+        }
+    });
+
+    document.addEventListener('wheel', (e) => {
+        const target = e.target;
+        if (target.tagName !== 'INPUT' || target.type !== 'number') return;
+        e.preventDefault();
+        let step = target.id === 'nissuu' ? 7 : 1;
+        if (target.id.startsWith('suuryou')) {
+            const l = target.id.replace('suuryou', '');
+            const sel = document.getElementById(`kusuriselect${l}`);
+            if (sel && sel.value === '針') step = 14;
+        }
+        let val = parseFloat(target.value) || 0;
+        target.value = Math.max(0, e.deltaY < 0 ? val + step : val - step);
+
+        // ★ここを追加：ホイール操作の後にも行の表示チェックを走らせる
+        checkNextRow();
+        
+    }, { passive: false });
+</script>
+</body>
+</html>
