@@ -177,7 +177,7 @@
         <thead>
             <tr style="text-align: center;" class="table-danger">
                 <th scope="col" class="align-middle">
-                    <button type="button" onclick="location.reload()" class="btn btn-outline-success">ﾘｾｯﾄ</button>
+                    <button type="button" onclick="resetForm()" class="btn btn-outline-success">ﾘｾｯﾄ</button>
                 </th>
                 <th style="text-align: right" class="align-middle" scope="col">処方日数:</th>
                 <th scope="col">
@@ -366,6 +366,43 @@
         }
     }
 
+/* --- リセット処理（ページ再読み込みせず初期状態へ戻す） --- */
+function resetForm() {
+    // 処方日数を初期値に戻す
+    document.getElementById('nissuu').value = 28;
+
+    for (let l = 1; l <= 5; l++) {
+        // 薬剤選択を「---」に戻す
+        const select = document.getElementById(`kusuriselect${l}`);
+        if (select) select.selectedIndex = 0;
+
+        // 処方本数を0に戻す
+        const suuryou = document.getElementById(`suuryou${l}`);
+        if (suuryou) suuryou.value = 0;
+
+        // 分1〜分5の使用量を0に戻す
+        for (let j = 1; j <= 5; j++) {
+            const usage = document.getElementById(`siyouryou${j}-${l}`);
+            if (usage) usage.value = 0;
+        }
+    }
+
+    // 分3〜分5の行を初期状態（非表示）に戻す
+    for (let i = 3; i <= 5; i++) {
+        const row = document.getElementById(`row-shiyou${i}`);
+        if (row) row.style.display = 'none';
+    }
+
+    // 結果表示欄を初期メッセージに戻す
+    document.getElementById('dayresult').innerHTML = 'ここに結果が表示されます';
+
+    // 表示中のコピー通知が残っていれば消す
+    document.getElementById('copy-toast').classList.remove('show-toast');
+
+    // 日数入力欄にフォーカスを戻す
+    document.getElementById('nissuu').focus();
+}
+	
     /* --- 計算ロジック --- */
 function calcBtn() {
     const nissuu = Number(document.getElementById("nissuu").value);
